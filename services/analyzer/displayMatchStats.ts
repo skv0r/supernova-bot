@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import { MatchData } from '../../libs/types/team.types';
-import { dataFolder, scoresFilename } from '../../libs/config/config';
+import { Match, MatchData } from '../../libs/types/team.types';
+import { dataFolder, scoresFilenames } from '../../libs/config/config';
 import { fileURLToPath } from 'url';
 import { analyzeGameStats, displayGameStats } from './gameAnalyzer';
 import { analyzeMatchStats, displayMatchStats as showMatchStats } from './matchAnalyzer';
@@ -9,7 +9,6 @@ import { analyzeMatchStats, displayMatchStats as showMatchStats } from './matchA
 
 const modulePath = fileURLToPath(import.meta.url);
 const moduleDir = path.dirname(modulePath);
-const dataFilePath = path.resolve(moduleDir, dataFolder, scoresFilename);
 
 
 /**
@@ -22,19 +21,49 @@ function loadJsonData(jsonPath: string): MatchData {
 }
 
 /**
+ * Загружает все матчи из массива JSON файлов
+ * @param filenames массив имен файлов
+ * @returns объединенный массив матчей
+ */
+function loadAllMatches(filenames: string[]): Match[] {
+    const allMatches: Match[] = [];
+    
+    console.log(`📂 Загрузка данных из ${filenames.length} файлов...\n`);
+    
+    filenames.forEach((filename, index) => {
+        const filePath = path.resolve(moduleDir, dataFolder, filename);
+        
+        try {
+            const data = loadJsonData(filePath);
+            allMatches.push(...data.matches);
+            console.log(`  ✅ [${index + 1}/${filenames.length}] ${filename}: ${data.matches.length} матчей`);
+        } catch (error) {
+            console.error(`  ❌ [${index + 1}/${filenames.length}] ${filename}: Ошибка загрузки - ${error}`);
+        }
+    });
+    
+    return allMatches;
+}
+
+/**
  * Главная функция анализа общей статистики матчей
  * Выводит статистику по всем командам и игрокам, игровую статистику
- * @param jsonPath абсолютный путь к .json файлу
+ * @param filenames массив имен JSON файлов
  */
-function runMatchAnalysis(jsonPath: string): void {
+function runMatchAnalysis(filenames: string[]): void {
     console.log('='.repeat(60));
     console.log(`ОБЩАЯ СТАТИСТИКА МАТЧЕЙ`);
     console.log('='.repeat(60));
+    console.log();
 
-    const data = loadJsonData(jsonPath);
-    const matches = data.matches;
+    const matches = loadAllMatches(filenames);
 
-    console.log(`\nЗагружено матчей: ${matches.length}`);
+    console.log(`\n📊 Всего загружено матчей: ${matches.length}\n`);
+
+    if (matches.length === 0) {
+        console.log('❌ Нет данных для анализа!');
+        return;
+    }
 
     // 1. Общая статистика матчей (топ игроков, лучшие команды)
     const matchStats = analyzeMatchStats(matches);
@@ -49,5 +78,5 @@ function runMatchAnalysis(jsonPath: string): void {
     console.log('='.repeat(60));
 }
 
-runMatchAnalysis(dataFilePath);
+runMatchAnalysis(scoresFilenames);
 

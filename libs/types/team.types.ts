@@ -51,13 +51,18 @@ export interface TeamHeroPerformance {
 export interface PlayerRanking {
     playerName: string;
     damageRank: number;
-    damageTotal: number;
+    avgDamage: number;
+    totalDamage: number;
     killsRank: number;
-    killsTotal: number;
+    avgKills: number;
+    totalKills: number;
     assistsRank: number;
-    assistsTotal: number;
+    avgAssists: number;
+    totalAssists: number;
     survivalRank: number;
-    survivalTotal: number;
+    avgSurvival: number; // в минутах
+    totalSurvival: number; // в минутах
+    gamesPlayed: number;
     totalPlayers: number;
 }
 
@@ -115,4 +120,33 @@ export interface GameStats {
     teamCompositions: TeamComposition[]; // статистика троек героев (общая)
     teamCompositionsByMap: Map<string, TeamComposition[]>; // статистика троек по картам
     characterStats: CharacterStats[]; // винрейт/лузрейт каждого героя
+}
+
+// Статистика лучших игроков (для MatchAnalyzer)
+export interface TopPlayerStats {
+    playerName: string;
+    teamName: string;
+    avgValue: number; // среднее значение
+    totalValue: number; // общее значение
+    gamesPlayed: number; // количество игр
+}
+
+// Статистика команды (для MatchAnalyzer)
+export interface TeamPerformance {
+    teamName: string;
+    avgPlacement: number;
+    avgPoints: number;
+    totalGames: number;
+    heroVariety: number; // количество уникальных героев
+}
+
+// Общая статистика матчей (для MatchAnalyzer)
+export interface MatchStats {
+    topDamagePlayers: TopPlayerStats[]; // топ по урону
+    topKillsPlayers: TopPlayerStats[]; // топ по киллам
+    topAssistsPlayers: TopPlayerStats[]; // топ по ассистам
+    topSurvivalPlayers: TopPlayerStats[]; // топ по времени выживания
+    bestTeamsByPoints: TeamPerformance[]; // лучшие команды по очкам
+    bestTeamsByPlacement: TeamPerformance[]; // лучшие команды по плейсменту
+    mostDiverseTeams: TeamPerformance[]; // самые разнообразные команды
 }

@@ -1,64 +1,28 @@
-import { Match, Player } from '../../libs/types/team.types';
-
-/**
- * Статистика лучших игроков
- */
-export interface TopPlayerStats {
-    playerName: string;
-    teamName: string;
-    value: number;
-}
-
-/**
- * Статистика команды
- */
-export interface TeamPerformance {
-    teamName: string;
-    avgPlacement: number;
-    avgPoints: number;
-    totalGames: number;
-    heroVariety: number; // количество уникальных героев
-}
-
-/**
- * Общая статистика матчей
- */
-export interface MatchStats {
-    topDamagePlayers: TopPlayerStats[]; // топ по урону
-    topKillsPlayers: TopPlayerStats[]; // топ по киллам
-    topAssistsPlayers: TopPlayerStats[]; // топ по ассистам
-    topSurvivalPlayers: TopPlayerStats[]; // топ по времени выживания
-    bestTeamsByPoints: TeamPerformance[]; // лучшие команды по очкам
-    bestTeamsByPlacement: TeamPerformance[]; // лучшие команды по плейсменту
-    mostDiverseTeams: TeamPerformance[]; // самые разнообразные команды
-}
-
-/**
- * Упрощенная система подсчета очков ALGS
- */
-function calculatePoints(placement: number): number {
-    const pointsTable: { [key: number]: number } = {
-        1: 12, 2: 9, 3: 7, 4: 5, 5: 5,
-        6: 4, 7: 4, 8: 3, 9: 3, 10: 3,
-        11: 2, 12: 2, 13: 2, 14: 1, 15: 1,
-        16: 1, 17: 1, 18: 1, 19: 1, 20: 1,
-    };
-    return pointsTable[placement] || 0;
-}
+import { 
+    Match, 
+    Player, 
+    MatchStats, 
+    TopPlayerStats, 
+    TeamPerformance 
+} from '../../libs/types/team.types';
+import { getCanonicalPlayerName } from '../../libs/data/playerAliases';
+import { calculatePoints } from '../../libs/utils/calculatePoints';
 
 /**
  * Анализирует общую статистику матчей (не привязанную к конкретной команде)
  */
 export function analyzeMatchStats(matches: Match[]): MatchStats {
-    // Собираем статистику по игрокам
+    // Собираем статистику по игрокам (используем канонические имена)
     const playerStats = new Map<string, {
-        playerName: string;
+        canonicalName: string;
+        displayName: string;
         teamName: string;
         totalDamage: number;
         totalKills: number;
         totalAssists: number;
         totalSurvivalTime: number;
         gamesPlayed: number;
+        aliases: Set<string>;
     }>();
 
     // Собираем статистику по командам
@@ -73,18 +37,21 @@ export function analyzeMatchStats(matches: Match[]): MatchStats {
         const processedTeamsInMatch = new Set<string>();
 
         match.data.forEach((player: Player) => {
-            const key = `${player.player_name}_${player.team_name}`;
+            const canonicalName = getCanonicalPlayerName(player.player_name);
+            const key = `${canonicalName}_${player.team_name}`;
             
             // Статистика игрока
             if (!playerStats.has(key)) {
                 playerStats.set(key, {
-                    playerName: player.player_name,
+                    canonicalName,
+                    displayName: canonicalName,
                     teamName: player.team_name,
                     totalDamage: 0,
                     totalKills: 0,
                     totalAssists: 0,
                     totalSurvivalTime: 0,
                     gamesPlayed: 0,
+                    aliases: new Set(),
                 });
             }
             const pStats = playerStats.get(key)!;
@@ -93,6 +60,7 @@ export function analyzeMatchStats(matches: Match[]): MatchStats {
             pStats.totalAssists += player.assists;
             pStats.totalSurvivalTime += player.survival_time;
             pStats.gamesPlayed++;
+            pStats.aliases.add(player.player_name);
 
             // Статистика команды
             const teamName = player.team_name;
@@ -117,45 +85,61 @@ export function analyzeMatchStats(matches: Match[]): MatchStats {
         });
     });
 
-    // Топ игроков по урону
+    // Формируем отображаемые имена с псевдонимами
+    playerStats.forEach((stats) => {
+        if (stats.aliases.size > 1) {
+            const aliasesList = Array.from(stats.aliases).join(' / ');
+            stats.displayName = `${stats.canonicalName} (${aliasesList})`;
+        }
+    });
+
+    // Топ игроков по среднему урону
     const topDamagePlayers = Array.from(playerStats.values())
-        .sort((a, b) => b.totalDamage - a.totalDamage)
-        .slice(0, 10)
         .map(p => ({
-            playerName: p.playerName,
+            playerName: p.displayName,
             teamName: p.teamName,
-            value: p.totalDamage,
-        }));
+            avgValue: p.gamesPlayed > 0 ? p.totalDamage / p.gamesPlayed : 0,
+            totalValue: p.totalDamage,
+            gamesPlayed: p.gamesPlayed,
+        }))
+        .sort((a, b) => b.avgValue - a.avgValue)
+        .slice(0, 10);
 
-    // Топ игроков по киллам
+    // Топ игроков по средним киллам
     const topKillsPlayers = Array.from(playerStats.values())
-        .sort((a, b) => b.totalKills - a.totalKills)
-        .slice(0, 10)
         .map(p => ({
-            playerName: p.playerName,
+            playerName: p.displayName,
             teamName: p.teamName,
-            value: p.totalKills,
-        }));
+            avgValue: p.gamesPlayed > 0 ? p.totalKills / p.gamesPlayed : 0,
+            totalValue: p.totalKills,
+            gamesPlayed: p.gamesPlayed,
+        }))
+        .sort((a, b) => b.avgValue - a.avgValue)
+        .slice(0, 10);
 
-    // Топ игроков по ассистам
+    // Топ игроков по средним ассистам
     const topAssistsPlayers = Array.from(playerStats.values())
-        .sort((a, b) => b.totalAssists - a.totalAssists)
-        .slice(0, 10)
         .map(p => ({
-            playerName: p.playerName,
+            playerName: p.displayName,
             teamName: p.teamName,
-            value: p.totalAssists,
-        }));
+            avgValue: p.gamesPlayed > 0 ? p.totalAssists / p.gamesPlayed : 0,
+            totalValue: p.totalAssists,
+            gamesPlayed: p.gamesPlayed,
+        }))
+        .sort((a, b) => b.avgValue - a.avgValue)
+        .slice(0, 10);
 
-    // Топ игроков по времени выживания
+    // Топ игроков по среднему времени выживания
     const topSurvivalPlayers = Array.from(playerStats.values())
-        .sort((a, b) => b.totalSurvivalTime - a.totalSurvivalTime)
-        .slice(0, 10)
         .map(p => ({
-            playerName: p.playerName,
+            playerName: p.displayName,
             teamName: p.teamName,
-            value: Math.round(p.totalSurvivalTime / 60), // в минутах
-        }));
+            avgValue: p.gamesPlayed > 0 ? p.totalSurvivalTime / p.gamesPlayed / 60 : 0, // в минутах
+            totalValue: Math.round(p.totalSurvivalTime / 60), // в минутах
+            gamesPlayed: p.gamesPlayed,
+        }))
+        .sort((a, b) => b.avgValue - a.avgValue)
+        .slice(0, 10);
 
     // Формируем статистику команд
     const teamPerformances: TeamPerformance[] = Array.from(teamStats.entries())
@@ -199,24 +183,28 @@ export function analyzeMatchStats(matches: Match[]): MatchStats {
 export function displayMatchStats(stats: MatchStats): void {
     console.log('\n========== ОБЩАЯ СТАТИСТИКА МАТЧЕЙ ==========');
 
-    console.log('\n--- Топ-10 игроков по урону ---');
+    console.log('\n--- Топ-10 игроков по среднему урону ---');
     stats.topDamagePlayers.forEach((player, index) => {
-        console.log(`  ${index + 1}. ${player.playerName} (${player.teamName}): ${player.value} урона`);
+        console.log(`  ${index + 1}. ${player.playerName} (${player.teamName})`);
+        console.log(`     Средний урон: ${player.avgValue.toFixed(1)}, Всего: ${player.totalValue}, Игр: ${player.gamesPlayed}`);
     });
 
-    console.log('\n--- Топ-10 игроков по киллам ---');
+    console.log('\n--- Топ-10 игроков по средним киллам ---');
     stats.topKillsPlayers.forEach((player, index) => {
-        console.log(`  ${index + 1}. ${player.playerName} (${player.teamName}): ${player.value} киллов`);
+        console.log(`  ${index + 1}. ${player.playerName} (${player.teamName})`);
+        console.log(`     Средние киллы: ${player.avgValue.toFixed(2)}, Всего: ${player.totalValue}, Игр: ${player.gamesPlayed}`);
     });
 
-    console.log('\n--- Топ-10 игроков по ассистам ---');
+    console.log('\n--- Топ-10 игроков по средним ассистам ---');
     stats.topAssistsPlayers.forEach((player, index) => {
-        console.log(`  ${index + 1}. ${player.playerName} (${player.teamName}): ${player.value} ассистов`);
+        console.log(`  ${index + 1}. ${player.playerName} (${player.teamName})`);
+        console.log(`     Средние ассисты: ${player.avgValue.toFixed(2)}, Всего: ${player.totalValue}, Игр: ${player.gamesPlayed}`);
     });
 
-    console.log('\n--- Топ-10 игроков по времени выживания ---');
+    console.log('\n--- Топ-10 игроков по среднему времени выживания ---');
     stats.topSurvivalPlayers.forEach((player, index) => {
-        console.log(`  ${index + 1}. ${player.playerName} (${player.teamName}): ${player.value} мин`);
+        console.log(`  ${index + 1}. ${player.playerName} (${player.teamName})`);
+        console.log(`     Среднее время: ${player.avgValue.toFixed(1)} мин, Всего: ${player.totalValue} мин, Игр: ${player.gamesPlayed}`);
     });
 
     console.log('\n========== СТАТИСТИКА КОМАНД ==========');

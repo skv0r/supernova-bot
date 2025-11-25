@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import { MatchData } from '../../libs/types/team.types';
-import { dataFolder, scoresFilename, defaultTeamName } from '../../libs/config/config';
+import { Match, MatchData } from '../../libs/types/team.types';
+import { dataFolder, scoresFilenames, defaultTeamName } from '../../libs/config/config';
 import { fileURLToPath } from 'url';
 import { analyzeTeamStats, displayTeamStats as showTeamStats } from './teamAnalyzer';
 import { analyzePlayerStats, displayPlayerStats } from './playerAnalyzer';
@@ -9,7 +9,6 @@ import { analyzePlayerStats, displayPlayerStats } from './playerAnalyzer';
 
 const modulePath = fileURLToPath(import.meta.url);
 const moduleDir = path.dirname(modulePath);
-const dataFilePath = path.resolve(moduleDir, dataFolder, scoresFilename);
 
 const teamName = defaultTeamName;
 
@@ -24,20 +23,50 @@ function loadJsonData(jsonPath: string): MatchData {
 }
 
 /**
+ * Загружает все матчи из массива JSON файлов
+ * @param filenames массив имен файлов
+ * @returns объединенный массив матчей
+ */
+function loadAllMatches(filenames: string[]): Match[] {
+    const allMatches: Match[] = [];
+    
+    console.log(`📂 Загрузка данных из ${filenames.length} файлов...\n`);
+    
+    filenames.forEach((filename, index) => {
+        const filePath = path.resolve(moduleDir, dataFolder, filename);
+        
+        try {
+            const data = loadJsonData(filePath);
+            allMatches.push(...data.matches);
+            console.log(`  ✅ [${index + 1}/${filenames.length}] ${filename}: ${data.matches.length} матчей`);
+        } catch (error) {
+            console.error(`  ❌ [${index + 1}/${filenames.length}] ${filename}: Ошибка загрузки - ${error}`);
+        }
+    });
+    
+    return allMatches;
+}
+
+/**
  * Главная функция анализа команды
  * Выводит статистику конкретной команды: командную и персональную статистику игроков
- * @param jsonPath абсолютный путь к .json файлу
+ * @param filenames массив имен JSON файлов
  * @param teamName имя команды для анализа
  */
-function runTeamAnalysis(jsonPath: string, teamName: string): void {
+function runTeamAnalysis(filenames: string[], teamName: string): void {
     console.log('='.repeat(60));
     console.log(`АНАЛИЗ КОМАНДЫ: ${teamName}`);
     console.log('='.repeat(60));
+    console.log();
 
-    const data = loadJsonData(jsonPath);
-    const matches = data.matches;
+    const matches = loadAllMatches(filenames);
 
-    console.log(`\nЗагружено матчей: ${matches.length}`);
+    console.log(`\n📊 Всего загружено матчей: ${matches.length}\n`);
+
+    if (matches.length === 0) {
+        console.log('❌ Нет данных для анализа!');
+        return;
+    }
 
     // 1. Командная статистика (расширенная: включает тройки, героев, рейтинги)
     const teamStats = analyzeTeamStats(matches, teamName);
@@ -52,4 +81,4 @@ function runTeamAnalysis(jsonPath: string, teamName: string): void {
     console.log('='.repeat(60));
 }
 
-runTeamAnalysis(dataFilePath, teamName);
+runTeamAnalysis(scoresFilenames, teamName);

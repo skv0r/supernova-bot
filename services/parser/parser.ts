@@ -17,23 +17,21 @@ if (!fs.existsSync(downloadPath)) {
     fs.mkdirSync(downloadPath, { recursive: true });
 }
 
-async function runParser() {
-    console.log('Запуск парсера...');
-    
-    // Запуск браузера Firefox в headless режиме
-    const browser = await firefox.launch({
-        headless: true,
-    });
+// Список URL для парсинга
+const LOBBY_URLS = [
+    'https://eternalesports.club/lobbies/3/19882b',
+    'https://eternalesports.club/lobbies/5/d15404',
+    'https://eternalesports.club/lobbies/3/d580ee',
+    'https://eternalesports.club/lobbies/4/a91cce',
+    'https://eternalesports.club/lobbies/4/0ecb58',
+    'https://eternalesports.club/lobbies/5/c7d30f',
+];
 
-    const context = await browser.newContext({
-        acceptDownloads: true, // Разрешаем загрузки
-    });
-
-    const page = await context.newPage();
-
-    // Открываем страницу с матчем
-    const url = 'https://eternalesports.club/lobbies/3/19882b'; // Замени на актуальный URL
-    console.log(`Открываю страницу: ${url}`);
+/**
+ * Парсит один лобби
+ */
+async function parseLobby(page: any, url: string, lobbyIndex: number) {
+    console.log(`\n[${lobbyIndex + 1}/${LOBBY_URLS.length}] Открываю страницу: ${url}`);
     await page.goto(url, { waitUntil: 'networkidle' });
 
     // Ждем, пока страница полностью загрузится
@@ -69,7 +67,8 @@ async function runParser() {
         const filePath = path.join(downloadPath, fileName);
         await download.saveAs(filePath);
         
-        console.log(`Файл сохранен: ${filePath}`);
+        console.log(`✅ Файл сохранен: ${filePath}`);
+        return true;
         
     } catch (error) {
         console.error(`Ошибка при клике по кнопке или загрузке: ${error}`);
@@ -94,17 +93,60 @@ async function runParser() {
             const filePath = path.join(downloadPath, fileName);
             await download.saveAs(filePath);
             
-            console.log(`Файл сохранен: ${filePath}`);
+            console.log(`✅ Файл сохранен: ${filePath}`);
+            return true;
         } catch (retryError) {
-            console.error(`Повторная попытка не удалась: ${retryError}`);
-            throw retryError;
+            console.error(`❌ Повторная попытка не удалась: ${retryError}`);
+            return false;
+        }
+    }
+}
+
+async function runParser() {
+    console.log('🚀 Запуск парсера для всех лобби...');
+    console.log(`Всего лобби для парсинга: ${LOBBY_URLS.length}\n`);
+    
+    // Запуск браузера Firefox в headless режиме
+    const browser = await firefox.launch({
+        headless: true,
+    });
+
+    const context = await browser.newContext({
+        acceptDownloads: true, // Разрешаем загрузки
+    });
+
+    const page = await context.newPage();
+
+    let successCount = 0;
+    let failCount = 0;
+
+    // Парсим каждый лобби
+    for (let i = 0; i < LOBBY_URLS.length; i++) {
+        const url = LOBBY_URLS[i];
+        const success = await parseLobby(page, url, i);
+        
+        if (success) {
+            successCount++;
+        } else {
+            failCount++;
+        }
+
+        // Небольшая пауза между запросами
+        if (i < LOBBY_URLS.length - 1) {
+            console.log('Пауза 2 секунды перед следующим лобби...');
+            await page.waitForTimeout(2000);
         }
     }
 
     // Закрываем браузер
     await browser.close();
 
-    console.log(`Файл был скачан в папку: ${downloadPath}`);
+    console.log('\n' + '='.repeat(60));
+    console.log('📊 ИТОГИ ПАРСИНГА:');
+    console.log(`✅ Успешно: ${successCount}`);
+    console.log(`❌ Ошибки: ${failCount}`);
+    console.log(`📁 Папка с файлами: ${downloadPath}`);
+    console.log('='.repeat(60));
 }
 
 // Запуск парсера
