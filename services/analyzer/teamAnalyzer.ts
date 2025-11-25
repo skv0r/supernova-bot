@@ -1,101 +1,192 @@
-import { Match, Player, TeamStats } from '../../libs/types/team.types';
-import { getMapDisplayName } from '../../libs/utils/mapNames';
+import { 
+    Match, 
+    Player, 
+    TeamStats, 
+    TeamCompositionPerformance, 
+    TeamHeroPerformance, 
+    PlayerRanking 
+} from '../../libs/types/team.types';
 
 /**
- * Анализирует командную статистику
- * @param matches массив матчей
- * @param teamName имя команды для анализа
- * @returns объект с командной статистикой
+ * Анализирует статистику команды (продвинутая версия)
  */
 export function analyzeTeamStats(matches: Match[], teamName: string): TeamStats {
-    const pickedCharacters = new Map<string, number>();
-    const draftLocations = new Map<string, number>();
-    const placements: number[] = [];
-    const pointsPerGame: number[] = [];
+    // Статистика троек героев команды
+    const compositionsMap = new Map<string, number[]>(); // ключ -> массив плейсментов
 
+    // Статистика отдельных героев команды
+    const heroPlacementsMap = new Map<string, number[]>(); // герой -> массив плейсментов
+
+    // Собираем данные по команде
     matches.forEach((match) => {
         const teamPlayers = match.data.filter((p: Player) => p.team_name === teamName);
         
         if (teamPlayers.length === 0) return;
 
-        // Плейсмент команды
         const placement = teamPlayers[0].team_placement;
-        placements.push(placement);
 
-        // Очки за игру (упрощенная система: 1 место = 12 очков, 2 = 9, 3 = 7, 4-5 = 5, и т.д.)
-        const points = calculatePoints(placement);
-        pointsPerGame.push(points);
+        // Тройка героев
+        if (teamPlayers.length === 3) {
+            const heroes = teamPlayers.map(p => p.character_name).sort();
+            const compositionKey = heroes.join(',');
+            
+            if (!compositionsMap.has(compositionKey)) {
+                compositionsMap.set(compositionKey, []);
+            }
+            compositionsMap.get(compositionKey)!.push(placement);
+        }
 
-        // Пикаемые персонажи
+        // Отдельные герои
         teamPlayers.forEach((player) => {
-            const char = player.character_name;
-            pickedCharacters.set(char, (pickedCharacters.get(char) || 0) + 1);
+            const hero = player.character_name;
+            if (!heroPlacementsMap.has(hero)) {
+                heroPlacementsMap.set(hero, []);
+            }
+            heroPlacementsMap.get(hero)!.push(placement);
         });
-
-        // Локации драфтов (карты) - преобразуем в читаемое название
-        const mapName = getMapDisplayName(match.map_name);
-        draftLocations.set(mapName, (draftLocations.get(mapName) || 0) + 1);
     });
 
-    const totalMatches = placements.length;
-    const avgPlacement = totalMatches > 0 
-        ? placements.reduce((sum, p) => sum + p, 0) / totalMatches 
-        : 0;
-    const avgPointsPerGame = totalMatches > 0
-        ? pointsPerGame.reduce((sum, p) => sum + p, 0) / totalMatches
-        : 0;
-    const maxPointsInSeries = pointsPerGame.length > 0 ? Math.max(...pointsPerGame) : 0;
-    const minPointsInSeries = pointsPerGame.length > 0 ? Math.min(...pointsPerGame) : 0;
+    // Формируем статистику троек
+    const teamCompositions: TeamCompositionPerformance[] = Array.from(compositionsMap.entries())
+        .map(([key, placements]) => ({
+            heroes: key.split(','),
+            avgPlacement: placements.reduce((sum, p) => sum + p, 0) / placements.length,
+            gamesPlayed: placements.length,
+            bestPlacement: Math.min(...placements),
+            worstPlacement: Math.max(...placements),
+        }))
+        .sort((a, b) => a.avgPlacement - b.avgPlacement); // Сортируем по среднему месту
+
+    // Формируем статистику героев
+    const heroPerformances: TeamHeroPerformance[] = Array.from(heroPlacementsMap.entries())
+        .map(([hero, placements]) => ({
+            heroName: hero,
+            avgPlacement: placements.reduce((sum, p) => sum + p, 0) / placements.length,
+            gamesPlayed: placements.length,
+            bestPlacement: Math.min(...placements),
+            worstPlacement: Math.max(...placements),
+        }))
+        .sort((a, b) => a.avgPlacement - b.avgPlacement);
+
+    // Рейтинги игроков относительно всех
+    const playerRankings = calculatePlayerRankings(matches, teamName);
 
     return {
-        teamName,
-        totalMatches,
-        avgPlacement,
-        avgPointsPerGame,
-        maxPointsInSeries,
-        minPointsInSeries,
-        pickedCharacters,
-        draftLocations,
+        teamCompositions,
+        heroPerformances,
+        playerRankings,
     };
 }
 
 /**
- * Упрощенная система подсчета очков ALGS
+ * Вычисляет рейтинги игроков команды относительно всех игроков
  */
-function calculatePoints(placement: number): number {
-    const pointsTable: { [key: number]: number } = {
-        1: 12, 2: 9, 3: 7, 4: 5, 5: 5,
-        6: 4, 7: 4, 8: 3, 9: 3, 10: 3,
-        11: 2, 12: 2, 13: 2, 14: 1, 15: 1,
-        16: 1, 17: 1, 18: 1, 19: 1, 20: 1,
-    };
-    return pointsTable[placement] || 0;
+function calculatePlayerRankings(matches: Match[], teamName: string): PlayerRanking[] {
+    // Собираем статистику всех игроков
+    const allPlayersStats = new Map<string, {
+        playerName: string;
+        teamName: string;
+        totalDamage: number;
+        totalKills: number;
+        totalAssists: number;
+        totalSurvival: number;
+    }>();
+
+    matches.forEach((match) => {
+        match.data.forEach((player: Player) => {
+            const key = `${player.player_name}_${player.team_name}`;
+            
+            if (!allPlayersStats.has(key)) {
+                allPlayersStats.set(key, {
+                    playerName: player.player_name,
+                    teamName: player.team_name,
+                    totalDamage: 0,
+                    totalKills: 0,
+                    totalAssists: 0,
+                    totalSurvival: 0,
+                });
+            }
+            
+            const stats = allPlayersStats.get(key)!;
+            stats.totalDamage += player.damage_dealt;
+            stats.totalKills += player.kills;
+            stats.totalAssists += player.assists;
+            stats.totalSurvival += player.survival_time;
+        });
+    });
+
+    const allPlayers = Array.from(allPlayersStats.values());
+    const totalPlayers = allPlayers.length;
+
+    // Сортируем по каждой метрике
+    const damageRanking = [...allPlayers].sort((a, b) => b.totalDamage - a.totalDamage);
+    const killsRanking = [...allPlayers].sort((a, b) => b.totalKills - a.totalKills);
+    const assistsRanking = [...allPlayers].sort((a, b) => b.totalAssists - a.totalAssists);
+    const survivalRanking = [...allPlayers].sort((a, b) => b.totalSurvival - a.totalSurvival);
+
+    // Находим игроков нашей команды и их рейтинги
+    const teamPlayers = allPlayers.filter(p => p.teamName === teamName);
+
+    return teamPlayers.map(player => {
+        const damageRank = damageRanking.findIndex(p => 
+            p.playerName === player.playerName && p.teamName === player.teamName) + 1;
+        const killsRank = killsRanking.findIndex(p => 
+            p.playerName === player.playerName && p.teamName === player.teamName) + 1;
+        const assistsRank = assistsRanking.findIndex(p => 
+            p.playerName === player.playerName && p.teamName === player.teamName) + 1;
+        const survivalRank = survivalRanking.findIndex(p => 
+            p.playerName === player.playerName && p.teamName === player.teamName) + 1;
+
+        return {
+            playerName: player.playerName,
+            damageRank,
+            damageTotal: player.totalDamage,
+            killsRank,
+            killsTotal: player.totalKills,
+            assistsRank,
+            assistsTotal: player.totalAssists,
+            survivalRank,
+            survivalTotal: Math.round(player.totalSurvival / 60), // в минутах
+            totalPlayers,
+        };
+    });
 }
 
 /**
- * Выводит командную статистику в консоль
+ * Выводит статистику команды
  */
-export function displayTeamStats(stats: TeamStats): void {
-    console.log('\n========== КОМАНДНАЯ СТАТИСТИКА ==========');
-    console.log(`Команда: ${stats.teamName}`);
-    console.log(`Всего матчей: ${stats.totalMatches}`);
-    console.log(`Средний плейсмент: ${stats.avgPlacement.toFixed(2)}`);
-    console.log(`Средние очки за игру: ${stats.avgPointsPerGame.toFixed(2)}`);
-    console.log(`Максимум очков за игру: ${stats.maxPointsInSeries}`);
-    console.log(`Минимум очков за игру: ${stats.minPointsInSeries}`);
+export function displayTeamStats(stats: TeamStats, teamName: string): void {
+    console.log('\n========== СТАТИСТИКА КОМАНДЫ ==========');
 
-    console.log('\nПикаемые персонажи:');
-    const sortedChars = Array.from(stats.pickedCharacters.entries())
-        .sort((a, b) => b[1] - a[1]);
-    sortedChars.forEach(([char, count]) => {
-        console.log(`  ${char}: ${count} раз`);
-    });
+    // Статистика троек героев
+    if (stats.teamCompositions.length > 0) {
+        console.log('\n--- Тройки героев по среднему плейсменту ---');
+        stats.teamCompositions.forEach((comp, index) => {
+            console.log(`  ${index + 1}. ${comp.heroes.join(' + ')}`);
+            console.log(`     Средний плейсмент: ${comp.avgPlacement.toFixed(2)}, Игр: ${comp.gamesPlayed}`);
+            console.log(`     Лучший: ${comp.bestPlacement}, Худший: ${comp.worstPlacement}`);
+        });
+    }
 
-    console.log('\nКарты (локации драфтов):');
-    const sortedMaps = Array.from(stats.draftLocations.entries())
-        .sort((a, b) => b[1] - a[1]);
-    sortedMaps.forEach(([map, count]) => {
-        console.log(`  ${map}: ${count} раз`);
+    // Статистика отдельных героев
+    if (stats.heroPerformances.length > 0) {
+        console.log('\n--- Герои по среднему плейсменту ---');
+        stats.heroPerformances.forEach((hero, index) => {
+            console.log(`  ${index + 1}. ${hero.heroName}`);
+            console.log(`     Средний плейсмент: ${hero.avgPlacement.toFixed(2)}, Игр: ${hero.gamesPlayed}`);
+            console.log(`     Лучший: ${hero.bestPlacement}, Худший: ${hero.worstPlacement}`);
+        });
+    }
+
+    // Рейтинги игроков
+    console.log('\n--- РЕЙТИНГИ ИГРОКОВ ОТНОСИТЕЛЬНО ВСЕХ ---');
+    console.log(`(Всего игроков в турнире: ${stats.playerRankings[0]?.totalPlayers || 0})\n`);
+    
+    stats.playerRankings.forEach((ranking) => {
+        console.log(`${ranking.playerName}:`);
+        console.log(`  Урон: ${ranking.damageTotal} (Топ-${ranking.damageRank} из ${ranking.totalPlayers})`);
+        console.log(`  Киллы: ${ranking.killsTotal} (Топ-${ranking.killsRank} из ${ranking.totalPlayers})`);
+        console.log(`  Ассисты: ${ranking.assistsTotal} (Топ-${ranking.assistsRank} из ${ranking.totalPlayers})`);
+        console.log(`  Время выживания: ${ranking.survivalTotal} мин (Топ-${ranking.survivalRank} из ${ranking.totalPlayers})`);
     });
 }
-

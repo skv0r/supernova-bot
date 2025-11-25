@@ -5,7 +5,6 @@ import { dataFolder, scoresFilename, defaultTeamName } from '../../libs/config/c
 import { fileURLToPath } from 'url';
 import { analyzeTeamStats, displayTeamStats as showTeamStats } from './teamAnalyzer';
 import { analyzePlayerStats, displayPlayerStats } from './playerAnalyzer';
-import { analyzeTeamDetailedStats, displayTeamDetailedStats } from './teamDetailedAnalyzer';
 
 
 const modulePath = fileURLToPath(import.meta.url);
@@ -40,17 +39,13 @@ function runTeamAnalysis(jsonPath: string, teamName: string): void {
 
     console.log(`\nЗагружено матчей: ${matches.length}`);
 
-    // 1. Командная статистика
+    // 1. Командная статистика (расширенная: включает тройки, героев, рейтинги)
     const teamStats = analyzeTeamStats(matches, teamName);
-    showTeamStats(teamStats);
+    showTeamStats(teamStats, teamName);
 
     // 2. Персональная статистика игроков команды
     const playerStats = analyzePlayerStats(matches, teamName);
     displayPlayerStats(playerStats);
-
-    // 3. Детальная статистика команды (тройки, герои, рейтинги)
-    const detailedStats = analyzeTeamDetailedStats(matches, teamName);
-    displayTeamDetailedStats(detailedStats, teamName);
 
     console.log('\n' + '='.repeat(60));
     console.log('АНАЛИЗ КОМАНДЫ ЗАВЕРШЕН');

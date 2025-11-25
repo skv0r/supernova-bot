@@ -29,16 +29,43 @@ export interface MatchData {
     matches: Match[];
 }
 
-// Командная статистика
-export interface TeamStats {
-    teamName: string;
-    totalMatches: number;
+// Статистика тройки героев команды
+export interface TeamCompositionPerformance {
+    heroes: string[];
     avgPlacement: number;
-    avgPointsPerGame: number;
-    maxPointsInSeries: number;
-    minPointsInSeries: number;
-    pickedCharacters: Map<string, number>; // character_name -> count
-    draftLocations: Map<string, number>; // map_name -> count
+    gamesPlayed: number;
+    bestPlacement: number;
+    worstPlacement: number;
+}
+
+// Статистика героя команды
+export interface TeamHeroPerformance {
+    heroName: string;
+    avgPlacement: number;
+    gamesPlayed: number;
+    bestPlacement: number;
+    worstPlacement: number;
+}
+
+// Рейтинг игрока относительно всех
+export interface PlayerRanking {
+    playerName: string;
+    damageRank: number;
+    damageTotal: number;
+    killsRank: number;
+    killsTotal: number;
+    assistsRank: number;
+    assistsTotal: number;
+    survivalRank: number;
+    survivalTotal: number;
+    totalPlayers: number;
+}
+
+// Командная статистика (продвинутая версия)
+export interface TeamStats {
+    teamCompositions: TeamCompositionPerformance[];
+    heroPerformances: TeamHeroPerformance[];
+    playerRankings: PlayerRanking[];
 }
 
 // Персональная статистика игрока
