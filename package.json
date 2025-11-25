@@ -1,0 +1,13 @@
+{
+  "name": "supernova-bot-ts",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "ts-node lobbyAnalyser.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

@@ -13,7 +13,12 @@ from selenium.webdriver.support import expected_conditions as EC
 chromedriver_autoinstaller.install()
 
 # Определяем путь для скачивания
-download_path = os.getcwd()  # Текущая рабочая директория, где находится скрипт
+# Новая папка назначения — deployment/db относительно текущего местоположения скрипта
+script_dir = os.path.dirname(os.path.abspath(__file__))
+download_path = os.path.abspath(os.path.join(script_dir, "deployment", "db"))
+
+# Создать папку, если её нет
+os.makedirs(download_path, exist_ok=True)
 
 # Настроим параметры для Chrome
 chrome_options = Options()
