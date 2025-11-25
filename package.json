@@ -3,11 +3,18 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "ts-node lobbyAnalyser.ts"
+    "start": "tsx services/analyzer/displayTeamStats.ts",
+    "analyze:team": "tsx services/analyzer/displayTeamStats.ts",
+    "analyze:match": "tsx services/analyzer/displayMatchStats.ts",
+    "parse": "tsx services/parser/parser.ts"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
     "ts-node": "^10.0.0",
-    "@types/node": "^20.0.0"
+    "tsx": "^4.20.6",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "playwright": "^1.57.0"
   }
 }

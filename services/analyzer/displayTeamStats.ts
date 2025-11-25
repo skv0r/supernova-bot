@@ -1,8 +1,11 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import { Player, Match, MatchData } from '../../libs/types/team.types';
+import { MatchData } from '../../libs/types/team.types';
 import { dataFolder, scoresFilename, defaultTeamName } from '../../libs/config/config';
 import { fileURLToPath } from 'url';
+import { analyzeTeamStats, displayTeamStats as showTeamStats } from './teamAnalyzer';
+import { analyzePlayerStats, displayPlayerStats } from './playerAnalyzer';
+import { analyzeTeamDetailedStats, displayTeamDetailedStats } from './teamDetailedAnalyzer';
 
 
 const modulePath = fileURLToPath(import.meta.url);
@@ -22,47 +25,36 @@ function loadJsonData(jsonPath: string): MatchData {
 }
 
 /**
- * Выводит статистику команды по всем матчам и суммарно
+ * Главная функция анализа команды
+ * Выводит статистику конкретной команды: командную и персональную статистику игроков
  * @param jsonPath абсолютный путь к .json файлу
  * @param teamName имя команды для анализа
  */
-function displayTeamStats(jsonPath: string, teamName: string): void {
+function runTeamAnalysis(jsonPath: string, teamName: string): void {
+    console.log('='.repeat(60));
+    console.log(`АНАЛИЗ КОМАНДЫ: ${teamName}`);
+    console.log('='.repeat(60));
+
     const data = loadJsonData(jsonPath);
-    let sessionTotalKills = 0;
-    let sessionTotalDamage = 0;
-    let sessionTotalPlayers = 0;
+    const matches = data.matches;
 
-    data.matches.forEach((match: Match) => {
-        let matchTotalKills = 0;
-        let matchTotalDamage = 0;
-        let matchTotalPlayers = 0;
+    console.log(`\nЗагружено матчей: ${matches.length}`);
 
-        console.log(`\nМатч на карте: ${match.map_name}`);
-        console.log(`Плейсмент команды: ${match.data[0]?.team_placement ?? "неизвестно"}`);
+    // 1. Командная статистика
+    const teamStats = analyzeTeamStats(matches, teamName);
+    showTeamStats(teamStats);
 
-        match.data.forEach((player: Player) => {
-            if (player.team_name === teamName) {
-                matchTotalKills += player.kills;
-                matchTotalDamage += player.damage_dealt;
-                matchTotalPlayers++;
-                console.log(`${player.player_name} на карте:`);
-                console.log(`Киллы: ${player.kills}, Урон: ${player.damage_dealt}`);
-            }
-        });
+    // 2. Персональная статистика игроков команды
+    const playerStats = analyzePlayerStats(matches, teamName);
+    displayPlayerStats(playerStats);
 
-        console.log(`\nОбщие киллы команды: ${matchTotalKills}`);
-        console.log(`Общий урон команды: ${matchTotalDamage}`);
-        console.log(`Общее количество игроков в команде: ${matchTotalPlayers}`);
+    // 3. Детальная статистика команды (тройки, герои, рейтинги)
+    const detailedStats = analyzeTeamDetailedStats(matches, teamName);
+    displayTeamDetailedStats(detailedStats, teamName);
 
-        sessionTotalKills += matchTotalKills;
-        sessionTotalDamage += matchTotalDamage;
-        sessionTotalPlayers += matchTotalPlayers;
-    });
-
-    console.log('\n==== СУММАРНО за все матчи ===');
-    console.log(`Суммарные киллы команды за серию матчей: ${sessionTotalKills}`);
-    console.log(`Суммарный урон команды: ${sessionTotalDamage}`);
-    console.log(`Общее количество учтённых записей игроков (по всем матчам): ${sessionTotalPlayers}`);
+    console.log('\n' + '='.repeat(60));
+    console.log('АНАЛИЗ КОМАНДЫ ЗАВЕРШЕН');
+    console.log('='.repeat(60));
 }
 
-displayTeamStats(dataFilePath, teamName);
+runTeamAnalysis(dataFilePath, teamName);
