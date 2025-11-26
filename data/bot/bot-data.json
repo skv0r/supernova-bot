@@ -1,0 +1,18 @@
+{
+  "scheduledPosts": [],
+  "contentPlans": [],
+  "channels": [
+    [
+      -1003468192303,
+      {
+        "id": -1003468192303,
+        "title": "Test channel",
+        "type": "channel",
+        "addedAt": "2025-11-26T11:55:55.405Z",
+        "lastChecked": "2025-11-26T11:59:01.963Z",
+        "isActive": true,
+        "memberCount": 2
+      }
+    ]
+  ]
+}

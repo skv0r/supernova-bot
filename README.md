@@ -1,41 +1,65 @@
-# SuperNovaBot - Ускоряем написание постов вдвое!
+# Telegram Channel Manager Bot
 
-## Быстрый старт установки на сервере
+Автоматизирует работу с Telegram-каналами: планирование контента, контроль каналов, интеграции с Twitch и AI-агентом.
 
-1. **Клонируйте репозиторий:**
+## Быстрый старт
 
-   ```bash
-   git clone supernova-bot
-   cd supernova-bot
-   ```
+```bash
+npm install
+cp .env.example .env # заполните ADMIN_BOT_TOKEN и дополнительные переменные
+npm run bot
+```
 
-2. **Установка Python-зависимостей**
-   (Python 3.9+ уже должен быть установлен)
+Поддерживаемые переменные окружения:
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+- `ADMIN_BOT_TOKEN` — токен бота от BotFather
+- `ADMIN_IDS` — список ID администраторов через запятую
+- `BOT_DATA_DIR` — путь до JSON-хранилища (по умолчанию `./data/bot`)
+- `CHECK_INTERVAL_MS` — период глобального планировщика, мс
 
-3. **Установка зависимостей для TypeScript/Node.js**
-   (Node.js 18+ уже должен быть установлен)
+## Полезные скрипты
 
-   ```bash
-   npm install
-   ```
+```bash
+npm run bot            # запустить Telegram-бота
+npm run analyze:team   # анализ статистики команды
+npm run analyze:match  # анализ матчей/игроков
+npm run parse          # скачать и обновить сырой контент-план
+npm test               # unit-тесты
+```
 
-4. **Первый запуск TS-скрипта**
+## Структура проекта
 
-   ```bash
-   npm start
-   ```
+```
+/telegram-channel-manager-bot
+├── package.json
+├── tsconfig.json
+├── .env
+├── README.md
+├── src
+│   ├── index.ts
+│   ├── bot/
+│   │   ├── bot.ts
+│   │   ├── handlers/
+│   │   ├── middlewares/
+│   │   └── routes.ts
+│   ├── modules/
+│   │   ├── channels/
+│   │   ├── content-plan/
+│   │   ├── twitch/
+│   │   ├── ai-agent/
+│   │   └── scheduler/
+│   ├── parse/
+│   ├── database/
+│   ├── api/
+│   ├── utils/
+│   └── config/
+└── tests
+    ├── bot.test.ts
+    ├── scheduler.test.ts
+    ├── content-plan.test.ts
+    └── twitch.test.ts
+```
 
-   (по умолчанию запустится lobbyAnalyser.ts)
+## Поддержка
 
-5. **Запуск парсера Python**
-   ```bash
-   python parser.py
-   ```
-
----
-
-**Вопросы по запуску и настройке — пишите в issues!**
+Нашли баг или нужна подсказка? Открывайте issue — отвечаем быстро. 🚀
