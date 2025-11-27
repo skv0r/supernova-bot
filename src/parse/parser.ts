@@ -1,24 +1,15 @@
 import { firefox } from 'playwright';
 import * as path from 'path';
 import * as fs from 'fs';
+import { LOBBY_URLS, DATA_FOLDER } from '../config/constants';
 
-// Новая папка назначения — deployment/db относительно корня проекта
-const downloadPath = path.resolve(process.cwd(), 'deployment/db');
+// Папка назначения — deployment/db относительно корня проекта
+const downloadPath = path.resolve(process.cwd(), DATA_FOLDER);
 
 // Создать папку, если её нет
 if (!fs.existsSync(downloadPath)) {
     fs.mkdirSync(downloadPath, { recursive: true });
 }
-
-// Список URL для парсинга
-const LOBBY_URLS = [
-    'https://eternalesports.club/lobbies/3/19882b',
-    'https://eternalesports.club/lobbies/5/d15404',
-    'https://eternalesports.club/lobbies/3/d580ee',
-    'https://eternalesports.club/lobbies/4/a91cce',
-    'https://eternalesports.club/lobbies/4/0ecb58',
-    'https://eternalesports.club/lobbies/5/c7d30f',
-];
 
 /**
  * Парсит один лобби

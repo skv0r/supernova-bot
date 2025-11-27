@@ -31,6 +31,12 @@ function loadAllMatches(filenames: string[]): Match[] {
     filenames.forEach((filename, index) => {
         const filePath = path.resolve(process.cwd(), DATA_FOLDER, filename);
         
+        // Проверяем существование файла
+        if (!fs.existsSync(filePath)) {
+            console.log(`  ⏭️  [${index + 1}/${filenames.length}] ${filename}: Файл не найден (еще не спарсен)`);
+            return;
+        }
+        
         try {
             const data = loadJsonData(filePath);
             allMatches.push(...data.matches);
